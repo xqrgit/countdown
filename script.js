@@ -3,8 +3,8 @@
  * 实现主要功能：添加固定时长的倒计时项目、显示倒计时、重置倒计时、删除项目等
  */
 
-// 注册服务工作者
-if ('serviceWorker' in navigator) {
+// 注册服务工作者（仅在HTTP/HTTPS环境下）
+if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/service-worker.js')
             .then(registration => {
