@@ -1,6 +1,6 @@
 /**
  * 项目倒计时网页应用的JavaScript脚本
- * 实现主要功能：添加项目、显示倒计时、重置倒计时、删除项目等
+ * 实现主要功能：添加固定时长的倒计时项目、显示倒计时、重置倒计时、删除项目等
  */
 
 // 注册服务工作者
@@ -32,13 +32,45 @@ document.addEventListener('DOMContentLoaded', () => {
     class ProjectManager {
         constructor() {
             // 从localStorage加载项目数据
-            this.projects = JSON.parse(localStorage.getItem('countdownProjects')) || [];
+            let projects = JSON.parse(localStorage.getItem('countdownProjects')) || [];
+            
+            // 迁移旧版本数据格式
+            this.projects = this.migrateProjectsData(projects);
             
             // 初始化项目
             this.initProjects();
             
             // 设置定时器，每分钟更新一次倒计时
             setInterval(() => this.updateAllCountdowns(), 60000);
+        }
+        
+        /**
+         * 迁移旧版本的项目数据到新格式
+         * @param {Array} projects - 旧项目数据
+         * @returns {Array} - 迁移后的项目数据
+         */
+        migrateProjectsData(projects) {
+            return projects.map(project => {
+                // 如果是旧版本数据格式（有deadline和createdAt字段）
+                if (project.deadline && project.createdAt && !project.totalSeconds) {
+                    const deadlineDate = new Date(project.deadline);
+                    const createdDate = new Date(project.createdAt);
+                    const totalSeconds = Math.floor((deadlineDate - createdDate) / 1000);
+                    const now = new Date();
+                    const elapsedSeconds = Math.floor((now - createdDate) / 1000);
+                    const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+                    
+                    // 转换为新格式
+                    return {
+                        id: project.id,
+                        name: project.name,
+                        totalSeconds: totalSeconds,
+                        remainingSeconds: remainingSeconds,
+                        startTime: project.createdAt
+                    };
+                }
+                return project;
+            });
         }
         
         /**
@@ -77,10 +109,15 @@ document.addEventListener('DOMContentLoaded', () => {
             projectCard.dataset.id = project.id;
             projectCard.querySelector('.project-title').textContent = project.name;
             
-            // 设置截止日期信息
-            const deadlineDate = new Date(project.deadline);
-            const formattedDate = `${deadlineDate.getFullYear()}年${deadlineDate.getMonth() + 1}月${deadlineDate.getDate()}日 ${String(deadlineDate.getHours()).padStart(2, '0')}:${String(deadlineDate.getMinutes()).padStart(2, '0')}`;
-            projectCard.querySelector('.deadline-info').textContent = `截止日期: ${formattedDate}`;
+            // 设置总时长信息
+            const totalDays = Math.floor(project.totalSeconds / (24 * 3600));
+            const totalHours = Math.floor((project.totalSeconds % (24 * 3600)) / 3600);
+            projectCard.querySelector('.total-time').textContent = `${totalDays}天${totalHours}小时`;
+            
+            // 设置开始时间信息
+            const startDate = new Date(project.startTime);
+            const formattedStartDate = `${startDate.getFullYear()}年${startDate.getMonth() + 1}月${startDate.getDate()}日 ${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
+            projectCard.querySelector('.start-date-info').textContent = `开始时间: ${formattedStartDate}`;
             
             // 添加事件监听器
             projectCard.querySelector('.reset-btn').addEventListener('click', () => this.resetProject(project.id));
@@ -95,12 +132,16 @@ document.addEventListener('DOMContentLoaded', () => {
          * @param {Object} projectData - 项目数据
          */
         addProject(projectData) {
+            // 计算总秒数
+            const totalSeconds = (projectData.days * 24 * 3600) + (projectData.hours * 3600);
+            
             // 创建新项目对象
             const newProject = {
                 id: Date.now().toString(), // 使用时间戳作为唯一ID
                 name: projectData.name,
-                deadline: projectData.deadline,
-                createdAt: new Date().toISOString()
+                totalSeconds: totalSeconds, // 总时长（秒）
+                remainingSeconds: totalSeconds, // 剩余时长（秒）
+                startTime: new Date().toISOString() // 开始时间
             };
             
             // 添加到项目列表
@@ -128,22 +169,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const projectIndex = this.projects.findIndex(p => p.id === projectId);
             if (projectIndex === -1) return;
             
-            // 更新截止日期（从当前时间开始计算原始持续时间）
+            // 获取项目
             const project = this.projects[projectIndex];
-            const originalDeadline = new Date(project.deadline);
-            const originalCreatedAt = new Date(project.createdAt);
-            const originalDuration = originalDeadline.getTime() - originalCreatedAt.getTime();
             
-            // 设置新的截止时间
-            const now = new Date();
-            project.deadline = new Date(now.getTime() + originalDuration).toISOString();
-            project.createdAt = now.toISOString();
+            // 重置为初始时长
+            project.remainingSeconds = project.totalSeconds;
+            
+            // 更新开始时间为现在
+            project.startTime = new Date().toISOString();
             
             // 更新UI显示
             const projectCard = projectContainer.querySelector(`.project-card[data-id="${projectId}"]`);
-            const deadlineDate = new Date(project.deadline);
-            const formattedDate = `${deadlineDate.getFullYear()}年${deadlineDate.getMonth() + 1}月${deadlineDate.getDate()}日 ${String(deadlineDate.getHours()).padStart(2, '0')}:${String(deadlineDate.getMinutes()).padStart(2, '0')}`;
-            projectCard.querySelector('.deadline-info').textContent = `截止日期: ${formattedDate}`;
+            const startDate = new Date(project.startTime);
+            const formattedStartDate = `${startDate.getFullYear()}年${startDate.getMonth() + 1}月${startDate.getDate()}日 ${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
+            projectCard.querySelector('.start-date-info').textContent = `开始时间: ${formattedStartDate}`;
             
             // 保存更改
             this.saveProjects();
@@ -187,33 +226,46 @@ document.addEventListener('DOMContentLoaded', () => {
             const projectCard = projectContainer.querySelector(`.project-card[data-id="${projectId}"]`);
             if (!projectCard) return;
             
-            // 获取剩余时间
-            const deadlineDate = new Date(project.deadline);
+            // 计算已经过去的时间（秒）
+            const startTime = new Date(project.startTime);
             const now = new Date();
-            const timeLeft = deadlineDate - now;
+            const elapsedSeconds = Math.floor((now - startTime) / 1000);
+            
+            // 计算剩余时间
+            let remainingSeconds = project.totalSeconds - elapsedSeconds;
+            
+            // 更新项目剩余时间
+            project.remainingSeconds = remainingSeconds;
             
             // 如果已过期，显示为0
-            if (timeLeft < 0) {
+            if (remainingSeconds <= 0) {
                 projectCard.querySelector('.days').textContent = '0';
                 projectCard.querySelector('.hours').textContent = '0';
                 projectCard.classList.add('expired');
+                
+                // 保存更改（剩余时间为0）
+                project.remainingSeconds = 0;
+                this.saveProjects();
                 return;
             }
             
             // 计算天数和小时数
-            const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const days = Math.floor(remainingSeconds / (24 * 3600));
+            const hours = Math.floor((remainingSeconds % (24 * 3600)) / 3600);
             
             // 更新显示
             projectCard.querySelector('.days').textContent = days;
             projectCard.querySelector('.hours').textContent = hours;
             
-            // 如果接近截止日期（小于1天），添加紧急样式
-            if (timeLeft < (1000 * 60 * 60 * 24)) {
+            // 如果接近结束（小于1天），添加紧急样式
+            if (remainingSeconds < (24 * 3600)) {
                 projectCard.classList.add('urgent');
             } else {
                 projectCard.classList.remove('urgent');
             }
+            
+            // 每次更新都保存状态
+            this.saveProjects();
         }
         
         /**
@@ -240,10 +292,9 @@ document.addEventListener('DOMContentLoaded', () => {
     addProjectBtn.addEventListener('click', () => {
         projectModal.classList.add('active');
         
-        // 设置日期选择器的最小值为今天
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('deadlineDate').min = today;
-        document.getElementById('deadlineDate').value = today;
+        // 重置表单
+        document.getElementById('countdownDays').value = 0;
+        document.getElementById('countdownHours').value = 0;
     });
     
     // 关闭模态框
@@ -266,16 +317,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 获取表单数据
         const projectName = document.getElementById('projectName').value;
-        const deadlineDate = document.getElementById('deadlineDate').value;
-        const deadlineTime = document.getElementById('deadlineTime').value;
+        const countdownDays = parseInt(document.getElementById('countdownDays').value, 10) || 0;
+        const countdownHours = parseInt(document.getElementById('countdownHours').value, 10) || 0;
         
-        // 创建截止日期
-        const deadline = new Date(`${deadlineDate}T${deadlineTime}`).toISOString();
+        // 至少需要1小时的倒计时
+        if (countdownDays === 0 && countdownHours === 0) {
+            alert('倒计时至少需要设置一些时间（天数或小时数）');
+            return;
+        }
         
         // 添加项目
         projectManager.addProject({
             name: projectName,
-            deadline: deadline
+            days: countdownDays,
+            hours: countdownHours
         });
         
         // 关闭模态框
