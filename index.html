@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目倒计时</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- 网站图标 -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%234a6bff' stroke='white' stroke-width='2'/%3E%3Ccircle cx='50' cy='50' r='40' fill='none' stroke='white' stroke-width='2'/%3E%3Cline x1='50' y1='25' x2='50' y2='50' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3Cline x1='50' y1='50' x2='70' y2='60' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E" type="image/svg+xml">
+    <!-- Web应用清单 -->
+    <link rel="manifest" href="manifest.json">
+    <!-- 主题颜色 -->
+    <meta name="theme-color" content="#4a6bff">
+    <!-- 引入字体图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <!-- 页面头部 -->
+    <header>
+        <h1>项目倒计时</h1>
+        <p>轻松管理和跟踪你的项目截止日期</p>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main>
+        <!-- 控制区域 -->
+        <div class="controls">
+            <button id="addProjectBtn" class="btn-primary">
+                <i class="fas fa-plus"></i> 添加新项目
+            </button>
+        </div>
+
+        <!-- 项目列表 -->
+        <div class="project-container">
+            <!-- 项目卡片将通过JavaScript动态生成 -->
+            <div class="empty-state" id="emptyState">
+                <i class="fas fa-tasks fa-3x"></i>
+                <p>暂无项目</p>
+                <p>点击"添加新项目"按钮来创建您的第一个倒计时项目</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 添加项目的弹窗表单 -->
+    <div class="modal" id="projectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>添加新项目</h2>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="projectForm">
+                    <!-- 项目名称输入 -->
+                    <div class="form-group">
+                        <label for="projectName">项目名称</label>
+                        <input type="text" id="projectName" placeholder="请输入项目名称" required>
+                    </div>
+                    
+                    <!-- 截止日期选择 -->
+                    <div class="form-group">
+                        <label for="deadlineDate">截止日期</label>
+                        <input type="date" id="deadlineDate" required>
+                    </div>
+                    
+                    <!-- 截止时间选择 -->
+                    <div class="form-group">
+                        <label for="deadlineTime">截止时间</label>
+                        <input type="time" id="deadlineTime" value="23:59" required>
+                    </div>
+                    
+                    <!-- 表单提交按钮 -->
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="cancelBtn">取消</button>
+                        <button type="submit" class="btn-primary">保存项目</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目卡片模板 -->
+    <template id="projectTemplate">
+        <div class="project-card" data-id="">
+            <div class="project-header">
+                <h2 class="project-title"></h2>
+                <div class="project-actions">
+                    <button class="reset-btn" title="重置倒计时">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button class="delete-btn" title="删除项目">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="countdown">
+                <div class="time-block">
+                    <span class="days">0</span>
+                    <span class="time-label">天</span>
+                </div>
+                <div class="time-block">
+                    <span class="hours">0</span>
+                    <span class="time-label">小时</span>
+                </div>
+            </div>
+            <div class="project-footer">
+                <div class="deadline-info"></div>
+            </div>
+        </div>
+    </template>
+
+    <!-- 页脚 -->
+    <footer>
+        <p>&copy; 2023 项目倒计时应用</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html> 
